@@ -10,14 +10,14 @@ from dotenv import load_dotenv
 
 
 from flask import Flask
-from flask import request, abort
+from flask import request, abort, jsonify
 
 from MeowerBot import Client
 from better_profanity import profanity
 
 load_dotenv()
 
-#so i dont need to deal with systemd being root.
+# so i dont need to deal with systemd being root.
 os.chdir(os.path.dirname(__file__))
 
 
@@ -33,14 +33,16 @@ def get_remote_adress(request):
     return request.access_route[-1]
 
 
+
 from flask_cors import CORS, cross_origin
 
 
+
 app = Flask(__name__)
+app.DISABLE_GUESTS = False
 app.meower = Client(env["username"], env["password"], debug=False)
 app.meower.last_sent_perm = 0
 app.meower.waiting_for_usr_input = {"usr": "", "waiting": False}
-
 
 
 @app.before_request
@@ -52,21 +54,29 @@ def block_ips():
     post_data = request.get_json()
 
     if post_data is None:
-        abort(400)
+        abort(jsonify({"Error":"empty", "message":"no json found"}),400)
 
-    if not "username" in post_data:
-        abort(400)
-    if profanity.contains_profanity(post_data["username"]):
-        abort(403)
+    if profanity.contains_profanity(post_data.get("username", "")):
+        abort(jsonify({"Error":"username_profanity_error", "message":"Username contains profanity"}),403)
 
-    post_data["username"] = post_data["username"].replace(" ", "_")
+    post_data["username"] = post_data.get(
+        "username", "guest" + str(ip).replace(".", "").replace(":", "")[:6]
+    ).replace(" ", "_")
+
+    if post_data['username'] == "":
+      post_data['username'] = "guest" + str(ip).replace(".", "").replace(":", "")[:6]
+
+    if app.DISABLE_GUESTS and post_data['username'].startswith("guest"):
+        abort(jsonify({"Error":"guests_disabled"}),400)
+
     if not "post" in post_data:
-        abort(400)
+        abort(jsonify({"Error":"missing", "key":"post"}),400)
+
 
     usernames_and_ips[post_data["username"]] = ip
 
-    if ip in BANNED_IPS or post_data["username"] in BANNED_IPS:
-        abort(403)  # Ip is banned from The API for this meower bot
+    if ip in BANNED_IPS or post_data.get("username") in BANNED_IPS:
+        abort(jsonify({"Error":"banned"}),403)  # Ip is banned from The API for this meower bot
 
     request.ip = ip
 
@@ -76,14 +86,10 @@ def root():
     return "Welcome to the meower websockets root page", 200
 
 
-@app.route("/post/<chat>", methods=["POST"])
-@cross_origin()
-def post(chat):
-
-    post_data = request.get_json()
+def post_to_chat(chat, data):
 
     if chat == "home":
-        app.meower.send_msg(f"{post_data['username']}: {post_data['post']}")
+        app.meower.send_msg(f"{data['username']}: {data['post']}")
 
     else:
         app.meower._wss.SendPacket(
@@ -93,11 +99,19 @@ def post(chat):
                     "cmd": "post_chat",
                     "val": {
                         "chatid": chat,
-                        "p": f"{post_data['username']}: {post_data['post']}",
+                        "p": f"{data['username']}: {data['post']}",
                     },
                 },
             }
         )
+
+
+@app.route("/post/<chat>", methods=["POST"])
+@cross_origin()
+def post(chat):
+
+    post_data = request.get_json()
+    post_to_chat(chat, post_data)
     return "", 200
 
 
@@ -127,7 +141,7 @@ def on_raw_msg(msg, lisn):
         {"cmd": "direct", "val": {"cmd": "get_profile", "val": msg["u"]}}
     )
 
-    cmds = ["ipban", "ban", "help"]
+    cmds = ["ipban", "ban", "help", "disable_guests", "enable_gusts"]
 
     time.sleep(3)  # waiting for the last req to go through and return
 
@@ -168,6 +182,22 @@ def on_raw_msg(msg, lisn):
             app.meower.waiting_for_usr_input = {"usr": "", "waiting": False}
             BANNED_IPS.append(usernames_and_ips[args[2]])
             save_db()
+    elif args[1] == 'guest_disable':
+        if not (app.meower.last_send_perms <= 1) and (
+            not msg["u"] == "ShowierData9978"
+        ):
+            app.meower.send_msg(f"@{msg['u']} you dont have enough perms to disable guests")
+            return
+        app.DISABLE_GUESTS = True
+        app.meower.send_msg(f"@{msg['u']} guests have been disabled")
+    elif args[1] == 'guest_enable':     
+        if not (app.meower.last_send_perms <= 1) and (
+            not msg["u"] == "ShowierData9978"
+        ):
+            app.meower.send_msg(f"@{msg['u']} you dont have enough perms to disable guests")
+            return
+            app.DISABLE_GUESTS = False
+            app.meower.send_msg(f"@{msg['u']} guests have been enabled")
     elif args[1] == "help":
         app.meower.send_msg(f"@{msg['u']} here are my commands: {','.join(cmds)}")
 
