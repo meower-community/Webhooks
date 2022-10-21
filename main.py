@@ -116,7 +116,7 @@ def post(chat):
     return "", 200
 
 @app.after_request
-def after_request(response: Response) -> Response:
+def after_request(response):
     response.access_control_allow_origin = "*"
     return response
 
