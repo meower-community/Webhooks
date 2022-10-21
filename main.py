@@ -104,6 +104,7 @@ def post_to_chat(chat, data):
                 },
             }
         )
+	
 
 
 @app.route("/post/<chat>", methods=["POST"])
@@ -114,6 +115,10 @@ def post(chat):
     post_to_chat(chat, post_data)
     return "", 200
 
+@app.after_request
+def after_request(response: Response) -> Response:
+    response.access_control_allow_origin = "*"
+    return response
 
 def save_db():
     with open("banned_ips.json", "w") as f:
