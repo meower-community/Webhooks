@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 
 from flask import Flask
 from flask import request, abort, jsonify
+from flask_cors import CORS
 
 from MeowerBot import Client
 from better_profanity import profanity
@@ -39,6 +40,7 @@ from flask_cors import CORS, cross_origin
 
 
 app = Flask(__name__)
+cors = CORS(app, resources=r'*')
 app.DISABLE_GUESTS = False
 app.meower = Client(env["username"], env["password"], debug=False)
 app.meower.last_sent_perm = 0
