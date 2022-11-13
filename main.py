@@ -34,11 +34,10 @@ def get_remote_adress(request):
 
 
 
-from flask_cors import CORS, cross_origin
-
-
-
+from flask_cors import CORS
 app = Flask(__name__)
+app.CORS = CORS(app)
+
 app.DISABLE_GUESTS = False
 app.meower = Client(env["username"], env["password"], debug=False)
 app.meower.last_sent_perm = 0
@@ -47,8 +46,8 @@ app.meower.waiting_for_usr_input = {"usr": "", "waiting": False}
 
 @app.before_request
 def block_ips():
-    if request.method == "GET":
-        return
+    if not request.method == "POST": return
+
     ip = get_remote_adress(request)
 
     post_data = request.get_json()
@@ -108,17 +107,31 @@ def post_to_chat(chat, data):
 
 
 @app.route("/post/<chat>", methods=["POST"])
-@cross_origin()
 def post(chat):
 
     post_data = request.get_json()
     post_to_chat(chat, post_data)
     return "", 200
 
+
 @app.after_request
-def after_request(response):
-    response.access_control_allow_origin = "*"
-    return response
+def after_request_func(response):
+        origin = request.headers.get('Origin')
+        if request.method == 'OPTIONS':
+            response = make_response()
+            response.headers.add('Access-Control-Allow-Credentials', 'true')
+            response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+            response.headers.add('Access-Control-Allow-Headers', 'x-csrf-token')
+            response.headers.add('Access-Control-Allow-Methods',
+                                'GET, POST, OPTIONS, PUT, PATCH, DELETE')
+            if origin:
+                response.headers.add('Access-Control-Allow-Origin', origin)
+        else:
+            response.headers.add('Access-Control-Allow-Credentials', 'true')
+            if origin:
+                response.headers.add('Access-Control-Allow-Origin', origin)
+
+        return response
 
 def save_db():
     with open("banned_ips.json", "w") as f:
@@ -131,6 +144,7 @@ def on_raw_packet(packet, lisn):
     if "mode" in cmd:
         if cmd["mode"] == "profile":
             app.meower.last_sent_perms = cmd["payload"]["lvl"]
+
 
 
 def on_raw_msg(msg, lisn):
