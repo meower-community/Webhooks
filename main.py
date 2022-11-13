@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 
 from flask import Flask
 from flask import request, abort, jsonify
+from flask_cors import CORS
 
 from MeowerBot import Client
 from better_profanity import profanity
@@ -34,9 +35,8 @@ def get_remote_adress(request):
 
 
 
-from flask_cors import CORS
 app = Flask(__name__)
-app.CORS = CORS(app)
+app.CORS = CORS(app, resources=r'*')
 
 app.DISABLE_GUESTS = False
 app.meower = Client(env["username"], env["password"], debug=False)
