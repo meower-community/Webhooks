@@ -66,13 +66,13 @@ def block_ips():
       post_data['username'] = "guest" + str(ip).replace(".", "").replace(":", "")[:6]
 
     if app.DISABLE_GUESTS and post_data['username'].startswith("guest"):
-        abort(jsonify({"Error":"guests_disabled"}),400)
+        abort(jsonify({"Error":"guests_disabled"}), 403)
 
     if not "post" in post_data:
         abort(jsonify({"Error":"missing", "key":"post"}),400)
 
 
-    usernames_and_ips[post_data["username"]] = ip
+    usernames_and_ips[post_data["username"]] = {"ip":ip, "pfp": int(post_data.get("pfp", "1"))}
 
     if ip in BANNED_IPS or post_data.get("username") in BANNED_IPS:
         abort(jsonify({"Error":"banned"}),403)  # Ip is banned from The API for this meower bot
@@ -104,7 +104,9 @@ def post_to_chat(chat, data):
             }
         )
 	
-
+@app.route("/get/<username>/pfp")
+def get_pfp(username):
+   return usernames_and_ips[username]['pfp']
 
 @app.route("/post/<chat>", methods=["POST"])
 def post(chat):
@@ -199,7 +201,7 @@ def on_raw_msg(msg, lisn):
                 return
             app.meower.send_msg(f"ip Banned them")
             app.meower.waiting_for_usr_input = {"usr": "", "waiting": False}
-            BANNED_IPS.append(usernames_and_ips[args[2]])
+            BANNED_IPS.append(usernames_and_ips[args[2]]['ip'])
             save_db()
     elif args[1] == 'guest_disable':
         if not (app.meower.last_send_perms <= 1) and (
