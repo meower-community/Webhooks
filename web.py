@@ -14,7 +14,7 @@ from better_profanity import profanity
 app = Flask(__name__)
 app.CORS = CORS(app, resources=r'*')
 
-
+usernames_and_ips = {}
 
 @app.before_request
 def block_ips():
@@ -43,10 +43,10 @@ def block_ips():
     if not "post" in post_data:
         abort(jsonify({"Error":"missing", "key":"post"}),400)
 
+    usernames_and_ips[post_data["username"]] = {"ip": ip, "pfp": post_data.get("pfp", 0)}
 
-    usernames_and_ips[post_data["username"]] = ip
 
-    if ip in BANNED_IPS or post_data.get("username") in BANNED_IPS:
+    if ip in app.BANNED_IPS or post_data.get("username") in app.BANNED_IPS:
         abort(jsonify({"Error":"banned"}),403)  # Ip is banned from The API for this meower bot
 
     request.ip = ip
@@ -56,6 +56,12 @@ def block_ips():
 def root():
     return "Welcome to the meower websockets root page", 200
 
+@app.route("/pfps/<username>")
+def get_pfp(username):
+    if username not in usernames_and_ips:
+        return username, 404
+    
+    return usernames_and_ips[username]['pfp']
 
 def post_to_chat(chat, data):
     app.meower.send_msg(f"{data['username']}: {data['post']}", to=chat)
@@ -67,7 +73,7 @@ def post(chat):
 
     post_data = request.get_json()
     post_to_chat(chat, post_data)
-    return "", 200
+    return "", 204
 
 
 @app.after_request

@@ -16,6 +16,7 @@ load_dotenv()
 import shlex
 
 from web import app
+import web
 
 # so i dont need to deal with systemd being root.
 os.chdir(os.path.dirname(__file__))
@@ -24,7 +25,7 @@ os.chdir(os.path.dirname(__file__))
 with open("banned_ips.json") as b_ips:
     BANNED_IPS = load(b_ips)
 
-usernames_and_ips = {}
+
 
 
 def get_remote_adress(request):
@@ -35,6 +36,7 @@ def get_remote_adress(request):
 meower = Bot(debug=False)
 meower.DISABLE_GUESTS = False
 app.meower = meower
+app.BANNED_IPS = BANNED_IPS
 
 meower.waiting_for_usr_input = {"usr": "", "waiting": False, "banning": ""}
 
@@ -71,12 +73,12 @@ def ipban(ctx, username):
          ctx.reply("You dont have enough perms to ip ban for this bot")
          return
     
-    if not username in usernames_and_ips:
+    if not username in web.usernames_and_ips:
         ctx.reply("Cant Find that user in my ip table ):")
         return
 
     if meower.waiting_for_user_input.get("usr", "") == ctx.message.user.username and waiting_for_user_input['banning'] == username:
-        BANNED_IPS.append(usernames_and_ips[username])
+        BANNED_IPS.append(web.usernames_and_ips[username]['ip'])
         save_db()
     else:
         ctx.reply("Are you sure you want to do this, if your sure run the command again")
