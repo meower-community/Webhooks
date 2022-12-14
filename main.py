@@ -1,22 +1,24 @@
-from threading import Thread
-from os import environ as env
 import os
-
-from json import load, dump
-import time
-import string
-
-from dotenv import load_dotenv
-
-from MeowerBot import Bot, __version__
-from better_profanity import profanity
-from sys import exit
-
-load_dotenv()
+#load_dotenv()
 import shlex
+import string
+import time
+from json import dump, load
+from os import environ as env
+from sys import exit
+from threading import Thread
 
-from web import app
+from better_profanity import profanity
+from MeowerBot import Bot, __version__
+from MeowerBot.cog import Cog
+from MeowerBot.command import command
 import web
+from web import app
+from MeowerBot.context import Post
+#from dotenv import load_dotenv
+
+
+
 
 # so i dont need to deal with systemd being root.
 os.chdir(os.path.dirname(__file__))
@@ -33,13 +35,13 @@ def get_remote_adress(request):
         return request.headers["X-Forwarded-For"].split(",")[-1]
     return request.access_route[-1]
 
-meower = Bot(debug=False)
-meower.DISABLE_GUESTS = False
-app.meower = meower
-app.BANNED_IPS = BANNED_IPS
+meower = Bot(debug=True, prefix="wh.")
+meower.DISABLE_GUESTS = False # type: ignore
+app.meower = meower # type: ignore
+app.BANNED_IPS = BANNED_IPS # type: ignore
 
-meower.waiting_for_usr_input = {"usr": "", "waiting": False, "banning": ""}
-
+meower.waiting_for_usr_input = {"usr": "", "waiting": False, "banning": ""} # type: ignore
+ 
 SPECIAL_ADMINS = ["ShowierData9978"]
 
 version = __version__.split(".")
@@ -56,60 +58,68 @@ def save_db():
     with open("banned_ips.json", "w") as f:
         dump(BANNED_IPS, f)
 
+class Cogs(Cog):
+    def __init__(self, bot):
+        self.bot = bot
+        super().__init__()
 
-@bot.command(args=1)
-def ban(ctx, username):
-    BANNED_IPS.append(username)
-    save_db()
-    ctx.reply(f"banned @{username}")
-
-@bot.command(args=0)
-def help(ctx):
-    ctx.reply(f"prefix: @Webhooks \n commands: {meower.commands.keys()}")
-
-@bot.command(args=1)
-def ipban(ctx, username):
-    if not ctx.message.user.lvl >= 3 and ctx.message.user.username not in SPECIAL_ADMINS:
-         ctx.reply("You dont have enough perms to ip ban for this bot")
-         return
-    
-    if not username in web.usernames_and_ips:
-        ctx.reply("Cant Find that user in my ip table ):")
-        return
-
-    if meower.waiting_for_user_input.get("usr", "") == ctx.message.user.username and waiting_for_user_input['banning'] == username:
-        BANNED_IPS.append(web.usernames_and_ips[username]['ip'])
+    @command(args=1)
+    def ban(self, ctx, username):
+        BANNED_IPS.append(username)
         save_db()
-    else:
-        ctx.reply("Are you sure you want to do this, if your sure run the command again")
-        meower.waiting_for_user_input = {"usr": ctx.message.user.username, "banning": username}
+        ctx.reply(f"banned @{username}")
 
-@bot.command(args=1)
-def guests(ctx, enable):
-    meower.DISABLE_GUESTS = not enable in ["enable", "1", "true", "True"] 
-    ctx.reply(f"Set Guests to {enable}")
+    @command(args=0)
+    def help(self, ctx):
+        ctx.reply(f"prefix: @Webhooks \n commands: {meower.commands.keys()}")
 
-def on_message(message):
+    @command(args=1)
+    def ipban(self, ctx, username):
+        if not ctx.message.user.level >= 3 and ctx.message.user.username not in SPECIAL_ADMINS:
+            ctx.reply("You dont have enough perms to ip ban for this meower")
+            return
+    
+        if not username in web.usernames_and_ips:
+            ctx.reply("Cant Find that user in my ip table ):")
+            return
+
+        if meower.waiting_for_user_input.get("usr", "") == ctx.message.user.username and waiting_for_user_input['banning'] == username: # type: ignore
+            BANNED_IPS.append(web.usernames_and_ips[username]['ip'])
+            save_db()
+        else:
+            ctx.reply("Are you sure you want to do this, if your sure run the command again") 
+            meower.waiting_for_user_input = {"usr": ctx.message.user.username, "banning": username} # type: ignore
+
+    @command(args=1)
+    def guests( self, ctx, enable):
+        meower.DISABLE_GUESTS = not enable in ["enable", "1", "true", "True"]  # type: ignore
+        ctx.reply(f"Set Guests to {enable}")
+
+def on_message(message: Post , bot=meower):
     # assuming mb.py 2.2.0
+    print(f"{message.user.username}: {message.data}")
 
     if message.user.username == env["username"]:
         return
 
     
     if not message.data.startswith(meower.prefix): return
-    message.data = message.data.split(meower.prefix, 1)[1]
+    message.data = message.data.strip().split(meower.prefix, 1)[1].strip()
 
-    if not shlex.split(str(message)) in meower.commands:
+    print(meower.commands.keys())
+    if not shlex.split(str(message.data))[0] in meower.commands.keys():
+        print("not a command")
         return
     
-    if not message.user.lvl >= 2 and  message.user.username not in SPECIAL_ADMINS:
-        message.ctx.reply("You dont have perms to run commands for this bot") 
+    if not message.user.level >= 2 and  message.user.username not in SPECIAL_ADMINS:
+        message.ctx.reply("You dont have perms to run commands for this meower") 
         return
     
     meower.run_command(message)
 
 
 meower.callback(on_message, cbid="message")
+meower.register_cog(Cogs(meower))
 
 if __name__ == "__main__":
     profanity.load_censor_words()
@@ -117,9 +127,8 @@ if __name__ == "__main__":
     t.start()
 
     try:
-        meower.start(env['username'], env['password'])
+        meower.run(env['username'], env['password'])
     except:
         pass
     finally:
-        os.system(f"kill -9 {os.getpid()}")
-        t.join()
+        os._exit(0)

@@ -16,6 +16,11 @@ app.CORS = CORS(app, resources=r'*')
 
 usernames_and_ips = {}
 
+def get_remote_adress(request):
+    if "X-Forwarded-For" in request.headers:
+        return request.headers["X-Forwarded-For"].split(",")[-1]
+    return request.access_route[-1]
+
 @app.before_request
 def block_ips():
     if not request.method == "POST": return
@@ -37,7 +42,7 @@ def block_ips():
     if post_data['username'] == "":
       post_data['username'] = "guest" + str(ip).replace(".", "").replace(":", "")[:6]
 
-    if app.app.meower.DISABLE_GUESTS and post_data['username'].startswith("guest"):
+    if app.meower.DISABLE_GUESTS and post_data['username'].startswith("guest"):
         abort(jsonify({"Error":"guests_app.meower.disabled"}),400)
 
     if not "post" in post_data:
