@@ -17,6 +17,8 @@ from web import app
 from MeowerBot.context import Post
 from dotenv import load_dotenv
 
+from tinydb import TinyDB, Query
+
 load_dotenv()
 
 
@@ -27,8 +29,8 @@ os.chdir(os.path.dirname(__file__))
 with open("banned_ips.json") as b_ips:
     BANNED_IPS = load(b_ips)
 
-
-
+with open("users.json") as user_doc:
+    USERS = load(user_doc)
 
 def get_remote_adress(request):
     if "X-Forwarded-For" in request.headers:
@@ -37,8 +39,10 @@ def get_remote_adress(request):
 
 meower = Bot(debug=True, prefix="wh.")
 meower.DISABLE_GUESTS = False # type: ignore
+
 app.meower = meower # type: ignore
 app.BANNED_IPS = BANNED_IPS # type: ignore
+app.USERS = USERS # type: ignore
 
 meower.waiting_for_usr_input = {"usr": "", "waiting": False, "banning": ""} # type: ignore
  
@@ -58,6 +62,9 @@ def save_db():
     with open("banned_ips.json", "w") as f:
         dump(BANNED_IPS, f)
 
+    with open("users.json", "w") as f:
+        dump(USERS, f)
+
 class Cogs(Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -71,7 +78,7 @@ class Cogs(Cog):
 
     @command(args=0)
     def help(self, ctx):
-        ctx.reply(f"prefix: @Webhooks \n commands: {meower.commands.keys()}")
+        ctx.reply(f"prefix: wh. \n commands: {meower.commands.keys()}")
 
     @command(args=1)
     def ipban(self, ctx, username):
@@ -106,9 +113,7 @@ def on_message(message: Post , bot=meower):
     if not message.data.startswith(meower.prefix): return
     message.data = message.data.strip().split(meower.prefix, 1)[1].strip()
 
-    print(meower.commands.keys())
     if not shlex.split(str(message.data))[0] in meower.commands.keys():
-        print("not a command")
         return
     
     if not message.user.level >= 2 and  message.user.username not in SPECIAL_ADMINS:

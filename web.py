@@ -16,6 +16,13 @@ app.CORS = CORS(app, resources=r'*')
 
 usernames_and_ips = {}
 
+def save_db():
+    with open("banned_ips.json", "w") as f:
+        dump(app.BANNED_IPS, f)
+
+    with open("users.json", "w") as f:
+        dump(app.USERS, f)
+
 def get_remote_adress(request):
     if "X-Forwarded-For" in request.headers:
         return request.headers["X-Forwarded-For"].split(",")[-1]
@@ -35,12 +42,15 @@ def block_ips():
     if profanity.contains_profanity(post_data.get("username", "")):
         abort(jsonify({"Error":"username_profanity_error", "message":"Username contains profanity"}),403)
 
+    if post_data["username"] is None and ip not in app.USERS:
+        app.USERS[str(ip)] = len(app.USERS)
+        save_db()
+
     post_data["username"] = post_data.get(
-        "username", "guest" + str(ip).replace(".", "").replace(":", "")[:6]
+        "username", "guest" + app.USERS[str(ip)]
     ).replace(" ", "_")
 
-    if post_data['username'] == "":
-      post_data['username'] = "guest" + str(ip).replace(".", "").replace(":", "")[:6]
+
 
     if app.meower.DISABLE_GUESTS and post_data['username'].startswith("guest"):
         abort(jsonify({"Error":"guests_app.meower.disabled"}),400)
