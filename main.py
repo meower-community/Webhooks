@@ -1,5 +1,5 @@
 import os
-#load_dotenv()
+#
 import shlex
 import string
 import time
@@ -15,9 +15,9 @@ from MeowerBot.command import command
 import web
 from web import app
 from MeowerBot.context import Post
-#from dotenv import load_dotenv
+from dotenv import load_dotenv
 
-
+load_dotenv()
 
 
 # so i dont need to deal with systemd being root.
