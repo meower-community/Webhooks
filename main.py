@@ -17,8 +17,6 @@ from web import app
 from MeowerBot.context import Post
 from dotenv import load_dotenv
 
-from tinydb import TinyDB, Query
-
 load_dotenv()
 
 

@@ -3,7 +3,7 @@ import string
 import shlex
 
 from json import load, dump
-from flask import Flask, request, abort, jsonify, make_response
+from flask import Flask, request, abort, jsonify, make_response, render_template
 from flask_cors import CORS
 
 from better_profanity import profanity
@@ -42,14 +42,14 @@ def block_ips():
     if profanity.contains_profanity(post_data.get("username", "")):
         abort(jsonify({"Error":"username_profanity_error", "message":"Username contains profanity"}),403)
 
-    if post_data["username"] is None and ip not in app.USERS:
+
+    if "username" not in post_data and ip not in app.USERS:
         app.USERS[str(ip)] = len(app.USERS)
         save_db()
 
     post_data["username"] = post_data.get(
-        "username", "guest" + app.USERS[str(ip)]
+        "username", "guest" + str(app.USERS[str(ip)])
     ).replace(" ", "_")
-
 
 
     if app.meower.DISABLE_GUESTS and post_data['username'].startswith("guest"):
@@ -69,7 +69,7 @@ def block_ips():
 
 @app.route("/")
 def root():
-    return "Welcome to the meower websockets root page", 200
+    return render_template('index.html')
 
 @app.route("/pfps/<username>")
 def get_pfp(username):
