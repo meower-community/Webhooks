@@ -35,7 +35,7 @@ def get_remote_adress(request):
         return request.headers["X-Forwarded-For"].split(",")[-1]
     return request.access_route[-1]
 
-meower = Bot(debug=True, prefix="wh.")
+meower = Bot(debug=True, prefix="@HookMod ")
 meower.DISABLE_GUESTS = False # type: ignore
 
 app.meower = meower # type: ignore
