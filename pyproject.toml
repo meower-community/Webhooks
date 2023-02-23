@@ -6,8 +6,11 @@ authors = ["ShowierData9978 <mellfang36@outlook.com>"]
 
 [tool.poetry.dependencies]
 python = "^3.10"
-meowerbot = "^1.4.0"
 Flask = "^2.2.2"
+meowerbot = "^2.4.3"
+better-profanity = "^0.7.0"
+flask-cors = "^3.0.10"
+python-dotenv = "^0.21.1"
 
 [tool.poetry.dev-dependencies]
 

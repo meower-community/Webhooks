@@ -16,8 +16,9 @@ import web
 from web import app
 from MeowerBot.context import Post
 from dotenv import load_dotenv
-
-load_dotenv()
+import logging
+import requests
+load_dotenv(override=True)
 
 
 # so i dont need to deal with systemd being root.
@@ -35,16 +36,22 @@ def get_remote_adress(request):
         return request.headers["X-Forwarded-For"].split(",")[-1]
     return request.access_route[-1]
 
-meower = Bot(debug=True, prefix="@HookMod ")
+meower = Bot(prefix="@HookMod", autoreload=0) # 1 second reload time, mb.py adds 1 second to this
 meower.DISABLE_GUESTS = False # type: ignore
 
 app.meower = meower # type: ignore
 app.BANNED_IPS = BANNED_IPS # type: ignore
 app.USERS = USERS # type: ignore
 
+logging.getLogger("cloudlink").setLevel(logging.DEBUG)
+logging.getLogger("meowerbot").setLevel(logging.DEBUG)
+
+
 meower.waiting_for_usr_input = {"usr": "", "waiting": False, "banning": ""} # type: ignore
  
 SPECIAL_ADMINS = ["ShowierData9978"]
+
+LVL_CASHE = {}
 
 version = __version__.split(".")
 
@@ -53,8 +60,6 @@ version = __version__.split(".")
 if not version[0] == "2":
     exit(1)
 
-if not int(version[1]) >= 2:
-    exit(1)
 
 def save_db():
     with open("banned_ips.json", "w") as f:
@@ -62,12 +67,25 @@ def save_db():
 
     with open("users.json", "w") as f:
         dump(USERS, f)
+def fetch_user_level(username):
+        if username in LVL_CASHE:
+            return LVL_CASHE[username]
+        else:
+            usr = requests.get(f"https://api.meower.org/users/{username}").json()
 
+            if usr.get("error", True):
+                LVL_CASHE[username] = 0
+                return 0
+            
+            LVL_CASHE[username] = usr['lvl']
+            return usr['lvl']
 class Cogs(Cog):
     def __init__(self, bot):
         self.bot = bot
         super().__init__()
 
+   
+            
     @command(args=1)
     def ban(self, ctx, username):
         BANNED_IPS.append(username)
@@ -76,11 +94,12 @@ class Cogs(Cog):
 
     @command(args=0)
     def help(self, ctx):
-        ctx.reply(f"prefix: wh. \n commands: {meower.commands.keys()}")
+        nl = ",\n  " # getting around fstring syntax
+        ctx.reply(f"prefix: @HookMod \ncommands:  {nl.join(list(meower.commands.keys()))}")
 
     @command(args=1)
     def ipban(self, ctx, username):
-        if not ctx.message.user.level >= 3 and ctx.message.user.username not in SPECIAL_ADMINS:
+        if not fetch_user_level(message.user.username) >= 3 and ctx.message.user.username not in SPECIAL_ADMINS:
             ctx.reply("You dont have enough perms to ip ban for this meower")
             return
     
@@ -98,7 +117,12 @@ class Cogs(Cog):
     @command(args=1)
     def guests( self, ctx, enable):
         meower.DISABLE_GUESTS = not enable in ["enable", "1", "true", "True"]  # type: ignore
-        ctx.reply(f"Set Guests to {enable}")
+        ctx.reply(f"{'Enabled' if meower.DISABLE_GUESTS else 'Disabled'} Guests")
+
+    @command(args=0)
+    def clear_lvl_cache(self, ctx):
+        LVL_CASHE.clear()
+        ctx.reply("Cleared Cache")
 
 def on_message(message: Post , bot=meower):
     # assuming mb.py 2.2.0
@@ -114,7 +138,7 @@ def on_message(message: Post , bot=meower):
     if not shlex.split(str(message.data))[0] in meower.commands.keys():
         return
     
-    if not message.user.level >= 2 and  message.user.username not in SPECIAL_ADMINS:
+    if not fetch_user_level(message.user.username) >= 2 and  message.user.username not in SPECIAL_ADMINS:
         message.ctx.reply("You dont have perms to run commands for this meower") 
         return
     
