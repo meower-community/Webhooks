@@ -101,7 +101,7 @@ class Cogs(Cog):
 
     @command(args=1)
     def ipban(self, ctx, username):
-        if not fetch_user_level(message.user.username) >= 3 and ctx.message.user.username not in SPECIAL_ADMINS:
+        if not fetch_user_level(ctx.message.user.username) >= 3 and ctx.message.user.username not in SPECIAL_ADMINS:
             ctx.reply("You dont have enough perms to ip ban for this meower bot")
             return
     
@@ -118,6 +118,9 @@ class Cogs(Cog):
 
     @command(args=1)
     def guests( self, ctx, enable):
+        if not fetch_user_level(ctx.message.user.username) >= 1 and ctx.message.user.username not in SPECIAL_ADMINS:
+            ctx.reply("You dont have enough perms to enable/disable guests for this meower bot")
+            return
         meower.DISABLE_GUESTS = not enable in ["enable", "1", "true", "True"]  # type: ignore
         ctx.reply(f"{'Enabled' if meower.DISABLE_GUESTS else 'Disabled'} Guests")
 
@@ -128,7 +131,7 @@ class Cogs(Cog):
 
     @command(args=1)
     def restart(self, ctx):
-        if not fetch_user_level(message.user.username) >= 4 and ctx.message.user.username not in SPECIAL_ADMINS:
+        if not fetch_user_level(ctx.message.user.username) >= 4 and ctx.message.user.username not in SPECIAL_ADMINS:
             ctx.reply("You dont have enough perms to restart for this meower bot")
             return
         ctx.reply("Restarting")
@@ -138,7 +141,7 @@ class Cogs(Cog):
 
     @command(args=0)
     def shutdown(self, ctx):
-        if not fetch_user_level(message.user.username) >= 4 and ctx.message.user.username not in SPECIAL_ADMINS:
+        if not fetch_user_level(ctx.message.user.username) >= 4 and ctx.message.user.username not in SPECIAL_ADMINS:
             ctx.reply("You dont have enough perms to shutdown for this meower bot")
             return
         ctx.reply("Shutting Down")
@@ -169,7 +172,7 @@ def on_message(message: Post , bot=meower):
     if not shlex.split(str(message.data))[0] in meower.commands.keys():
         return
     
-    if not fetch_user_level(message.user.username) >= 2 and  message.user.username not in SPECIAL_ADMINS:
+    if not fetch_user_level(ctx.message.user.username) >= 2 and  message.user.username not in SPECIAL_ADMINS:
         message.ctx.reply("You dont have perms to run commands for this meower bot") 
         return
     
