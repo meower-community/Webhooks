@@ -172,7 +172,7 @@ def on_message(message: Post , bot=meower):
     if not shlex.split(str(message.data))[0] in meower.commands.keys():
         return
     
-    if not fetch_user_level(ctx.message.user.username) >= 2 and  message.user.username not in SPECIAL_ADMINS:
+    if not fetch_user_level(message.user.username) >= 2 and  message.user.username not in SPECIAL_ADMINS:
         message.ctx.reply("You dont have perms to run commands for this meower bot") 
         return
     
