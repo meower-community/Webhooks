@@ -28,8 +28,25 @@ def get_remote_adress(request):
         return request.headers["X-Forwarded-For"].split(",")[-1]
     return request.access_route[-1]
 
-@app.before_request
-def block_ips():
+
+@app.route("/")
+def root():
+    return render_template('index.html')
+
+@app.route("/pfps/<username>")
+def get_pfp(username):
+    if username not in usernames_and_ips:
+        return username, 404
+    
+    return usernames_and_ips[username]['pfp']
+
+def post_to_chat(chat, data):
+    app.meower.send_msg(f"{data['username']}: {data['post']}", to=chat)
+	
+
+
+@app.route("/post/<chat>", methods=["POST"])
+def post(chat):
     if not request.method == "POST": return
 
     ip = get_remote_adress(request)
@@ -66,26 +83,6 @@ def block_ips():
 
     request.ip = ip
 
-
-@app.route("/")
-def root():
-    return render_template('index.html')
-
-@app.route("/pfps/<username>")
-def get_pfp(username):
-    if username not in usernames_and_ips:
-        return username, 404
-    
-    return usernames_and_ips[username]['pfp']
-
-def post_to_chat(chat, data):
-    app.meower.send_msg(f"{data['username']}: {data['post']}", to=chat)
-	
-
-
-@app.route("/post/<chat>", methods=["POST"])
-def post(chat):
-
     post_data = request.get_json()
     post_to_chat(chat, post_data)
     return "", 204
@@ -110,6 +107,52 @@ def after_request_func(response):
 
         return response
 
+@app.post("/pmsg/<username>/")
+def pmsg(username):
+    post_data = request.get_json()
+
+    #remove sensitive data from headers
+    headers = dict(request.headers).copy()
+    headers.pop("X-Forwarded-For", None)
+    headers.pop("X-Real-Ip", None)
+    headers.pop("X-Forwarded-Proto", None)
+    headers.pop("X-Forwarded-Host", None)
+    headers.pop("X-Forwarded-Port", None)
+    headers.pop("X-Forwarded-Server", None)
+
+    app.meower.wss.sendPacket({
+        "cmd": "pmsg",
+        "val":{
+            "original": post_data,
+            "headers": headers
+
+        },
+        "id": username
+    })
+    return "", 204
+
+@app.post("/pmsg/<username>/github")
+def pmsg_github(username):
+    post_data = request.get_json()
+    
+    #remove sensitive data from headers
+    headers = dict(request.headers).copy()
+    headers.pop("X-Forwarded-For", None)
+    headers.pop("X-Real-Ip", None)
+    headers.pop("X-Forwarded-Proto", None)
+    headers.pop("X-Forwarded-Host", None)
+    headers.pop("X-Forwarded-Port", None)
+    headers.pop("X-Forwarded-Server", None)
+
+    app.meower.wss.sendPacket({
+        "cmd": "pmsg",
+        "val":{
+            "original": post_data,
+            "headers": headers
+        },
+        "id": username
+    })
+    return "", 204
 
 if __name__ == "__main__":
     raise ImportError("web.py should be a module, not a main file")

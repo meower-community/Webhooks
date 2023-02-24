@@ -67,6 +67,7 @@ def save_db():
 
     with open("users.json", "w") as f:
         dump(USERS, f)
+
 def fetch_user_level(username):
         if username in LVL_CASHE:
             return LVL_CASHE[username]
@@ -79,6 +80,7 @@ def fetch_user_level(username):
             
             LVL_CASHE[username] = usr['lvl']
             return usr['lvl']
+
 class Cogs(Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -100,7 +102,7 @@ class Cogs(Cog):
     @command(args=1)
     def ipban(self, ctx, username):
         if not fetch_user_level(message.user.username) >= 3 and ctx.message.user.username not in SPECIAL_ADMINS:
-            ctx.reply("You dont have enough perms to ip ban for this meower")
+            ctx.reply("You dont have enough perms to ip ban for this meower bot")
             return
     
         if not username in web.usernames_and_ips:
@@ -124,6 +126,35 @@ class Cogs(Cog):
         LVL_CASHE.clear()
         ctx.reply("Cleared Cache")
 
+    @command(args=1)
+    def restart(self, ctx):
+        if not fetch_user_level(message.user.username) >= 4 and ctx.message.user.username not in SPECIAL_ADMINS:
+            ctx.reply("You dont have enough perms to restart for this meower bot")
+            return
+        ctx.reply("Restarting")
+        
+        #close this thread, while also exiting the program
+        os._exit(0)
+
+    @command(args=0)
+    def shutdown(self, ctx):
+        if not fetch_user_level(message.user.username) >= 4 and ctx.message.user.username not in SPECIAL_ADMINS:
+            ctx.reply("You dont have enough perms to shutdown for this meower bot")
+            return
+        ctx.reply("Shutting Down")
+        
+        #check for windows
+        if os.name == "nt":
+            #kill this process
+            os._exit(0)
+
+        #stop systemd service
+        #check if running as root
+        if os.geteuid() != 0:
+            os.system(command="sudo systemctl stop meower-webhook.service")
+        else:
+            os.system("systemctl stop meower-webhook.service")
+
 def on_message(message: Post , bot=meower):
     # assuming mb.py 2.2.0
     print(f"{message.user.username}: {message.data}")
@@ -139,7 +170,7 @@ def on_message(message: Post , bot=meower):
         return
     
     if not fetch_user_level(message.user.username) >= 2 and  message.user.username not in SPECIAL_ADMINS:
-        message.ctx.reply("You dont have perms to run commands for this meower") 
+        message.ctx.reply("You dont have perms to run commands for this meower bot") 
         return
     
     meower.run_command(message)
