@@ -64,6 +64,9 @@ def post(chat):
         app.USERS[str(ip)] = len(app.USERS)
         save_db()
 
+    if len(post_data.get("username", "")) > 20:
+        abort(jsonify({"Error":"username_too_long"}),403)
+
     post_data["username"] = post_data.get(
         "username", "guest" + str(app.USERS[str(ip)])
     ).replace(" ", "_")
