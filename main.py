@@ -84,7 +84,7 @@ class Cogs(Cog):
     @command(args=1)
     def ban(self, ctx, username):
         
-        user = db.users.get({"username": username})
+        user = db.users.find_one({"username": username})
         if user is None:
             ctx.reply(f"User @{username} not found")
             return
