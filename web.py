@@ -55,7 +55,14 @@ def post(chat):
         abort(jsonify({"Error":"meower.bad_username"}),403)
 
     if "username" not in post_data:
-        post_data["username"] = "guest" + str(app.db.users.count_documents({"guest": True}))
+        count = app.db.users.count_documents({"guest": True})
+
+        #check if user has already posted without a username on this ip
+        user = app.db.users.find_one({"ip": ip , "guest": True})
+        if user is  None:
+            post_data["username"] = "guest" + str(count)
+        else:
+            post_data["username"] = user["username"]
 
     if len(post_data.get("username", "")) > 20:
         abort(jsonify({"Error":"meower.bad_username"}), 403)
