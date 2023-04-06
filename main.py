@@ -104,7 +104,7 @@ class Cogs(Cog):
     @command(args=0)
     def help(self, ctx):
         nl = ",\n  " # getting around fstring syntax
-        ctx.reply(f"prefix: @HookMod \ncommands:  {nl.join(list(meower.commands.keys()))}")
+        ctx.reply(f"prefix: @HookMod \ncommands are  {nl.join(list(meower.commands.keys()))}")
 
     @command(args=1)
     def ipban(self, ctx, username):
