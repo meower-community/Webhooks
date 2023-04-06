@@ -26,8 +26,8 @@ os.chdir(os.path.dirname(__file__))
 
 
 def get_remote_adress(request):
-    if "X-Forwarded-For" in request.headers:
-        return request.headers["X-Forwarded-For"].split(",")[-1]
+    if "​​CF-Connecting-IP" in request.headers:
+        return request.headers["​​CF-Connecting-IP"]
     return request.access_route[-1]
 
 meower = Bot(prefix="@HookMod", autoreload=0) # 1 second reload time, mb.py adds 1 second to this
