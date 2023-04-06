@@ -7,6 +7,7 @@ from flask import Flask, request, abort, jsonify, make_response, render_template
 from flask_cors import CORS
 
 from better_profanity import profanity
+from pymongo import MongoClient
 
 
 
@@ -14,14 +15,7 @@ from better_profanity import profanity
 app = Flask(__name__)
 app.CORS = CORS(app, resources=r'*')
 
-usernames_and_ips = {}
 
-def save_db():
-    with open("banned_ips.json", "w") as f:
-        dump(app.BANNED_IPS, f)
-
-    with open("users.json", "w") as f:
-        dump(app.USERS, f)
 
 def get_remote_adress(request):
     if "X-Forwarded-For" in request.headers:
@@ -33,12 +27,13 @@ def get_remote_adress(request):
 def root():
     return render_template('index.html')
 
-@app.route("/pfps/<username>")
+@app.route("/pfp/<username>")
 def get_pfp(username):
-    if username not in usernames_and_ips:
-        return username, 404
+    user = app.db.users.find_one({"username": username})
+    if user is None:
+        return jsonify({"error": "user_not_found"}), 404
     
-    return usernames_and_ips[username]['pfp']
+    return jsonify({"pfp": user.get("pfp", -1)})
 
 def post_to_chat(chat, data):
     app.meower.send_msg(f"{data['username']}: {data['post']}", to=chat)
@@ -54,39 +49,48 @@ def post(chat):
     post_data = request.get_json()
 
     if post_data is None:
-        abort(jsonify({"Error":"empty", "message":"no json found"}),400)
+        abort(jsonify({"Error":"meower.empty"}), 400)
 
     if profanity.contains_profanity(post_data.get("username", "")):
-        abort(jsonify({"Error":"username_profanity_error", "message":"Username contains profanity"}),403)
+        abort(jsonify({"Error":"meower.bad_username"}),403)
 
-
-    if "username" not in post_data and ip not in app.USERS:
-        app.USERS[str(ip)] = len(app.USERS)
-        save_db()
+    if "username" not in post_data:
+        post_data["username"] = "guest" + str(app.db.users.count_documents({"guest": True}))
 
     if len(post_data.get("username", "")) > 20:
-        abort(jsonify({"Error":"username_too_long"}),403)
+        abort(jsonify({"Error":"meower.bad_username"}), 403)
 
-    post_data["username"] = post_data.get(
-        "username", "guest" + str(app.USERS[str(ip)])
-    ).replace(" ", "_")
+    post_data["username"] = post_data["username"].replace(" ", "_")
 
 
     if app.meower.DISABLE_GUESTS and post_data['username'].startswith("guest"):
-        abort(jsonify({"Error":"guests_app.meower.disabled"}),400)
+        abort(jsonify({"Error":"meower.guests_app.disabled"}),400)
 
     if not "post" in post_data:
-        abort(jsonify({"Error":"missing", "key":"post"}),400)
+        abort(jsonify({"Error":"meower.webhooks.missing_key", "key":"post"}),400)
 
-    usernames_and_ips[post_data["username"]] = {"ip": ip, "pfp": post_data.get("pfp", 0)}
+    user = app.db.users.find_one({"username": post_data["username"]})
+    if user is None:
+        app.db.users.insert_one({
+            "username": post_data["username"],
+            "pfp": post_data.get("pfp", -1),
+            "ip": [ip],
+            "guest": post_data["username"].startswith("guest")
+        })
+        user = app.db.users.find_one({"username": post_data["username"]})
 
 
-    if ip in app.BANNED_IPS or post_data.get("username") in app.BANNED_IPS:
-        abort(jsonify({"Error":"banned"}),403)  # Ip is banned from The API for this meower bot
+
+    else:
+        app.db.users.users.update_one({"username": post_data["username"]}, {"$addToSet": {"ip": ip}, "$set": {"pfp": post_data.get("pfp", user.get("pfp", -1))}})
+
+    #if ip in app.BANNED_IPS or post_data.get("username") in app.BANNED_IPS:
+
+    if app.db.bans.find_one({"type": "ip", "banned_ip": ip}) or app.db.bans.find_one({"type": 'username', "username": post_data.get("username")}):
+        abort(jsonify({"Error":"banned"}), 403)  # Ip is banned from The API for this meower bot
 
     request.ip = ip
 
-    post_data = request.get_json()
     post_to_chat(chat, post_data)
     return "", 204
 
