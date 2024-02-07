@@ -7,10 +7,13 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.12"
-meowerbot = "^3.1.0.post1"
-sanic = "^23.6.0"
+meowerbot = "^3.3.2"
+sanic = "^23.12.1"
 pymongo = "^4.6.0"
 bcrypt = "^4.0.1"
+setuptools = "^68.2.2"
+python-dotenv = "^1.0.0"
+requests = "^2.31.0"
 
 
 [build-system]
