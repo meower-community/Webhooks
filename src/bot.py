@@ -56,7 +56,7 @@ class Moderation(Cog):
                 EDIT_BAN_STATES
         """
 
-        self.bot.db.ban_user(user, True)
+        self.bot.db.ban_user(user)
         await ctx.send_msg(f"Banned {user}.")
         
     @mod.subcommand("delete_webhook", args=1)
@@ -64,7 +64,7 @@ class Moderation(Cog):
     async def delete_webhook(self, ctx: Context, webhook_id: int):
         webhook_id = int(webhook_id)
         self.bot.db.delete_webhook(webhook_id)
-
+        await ctx.reply("deleted webhook")
 
     @mod.subcommand("create", 2)
     @requires_permission(0) # No permissions required
@@ -95,9 +95,10 @@ class Moderation(Cog):
 
     @create.subcommand("home", 1)
     @requires_permission(Permissions.EDIT_CHATS)
-    async def create_home(self, ctx: Context, pfp: int):
+    async def create_livechat(self, ctx: Context, pfp: int):
         token, id = self.bot.db.create_webhook(pfp, "home") # type: str
-        user_dm = Chat(await self.bot.api.users.dm(ctx.user.username), self.bot)
+        user_dm = Chat((await self.bot.api.users.dm(ctx.user.username))[0], self.bot)
+
         await ctx.reply("I have sent your webhook via DM's")
         await user_dm.send_msg(f"Your webhook: https://webhooks.meower.org/webhook/{id}/{token}/home/post")
 
