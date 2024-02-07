@@ -77,4 +77,4 @@ async def not_found(_: Request, resp: sanic.HTTPResponse):
     raise sanic.exceptions.NotFound()
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=10000, dev=True, debug=True)
+    app.run(host="127.0.0.1", port=10000, dev=False, debug=False)
