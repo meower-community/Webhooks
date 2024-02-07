@@ -38,7 +38,6 @@ async def send(request: Request, id, token, chat_id):
         raise sanic.exceptions.BadRequest(message="message")
 
     webhook = database.get_webhook(id, token, str(chat_id))
-    os.system(f"echo {webhook}")
     if type(webhook) is tuple:
         return json({"error": True, "message": webhook[0]}, webhook[1])
 
@@ -46,7 +45,6 @@ async def send(request: Request, id, token, chat_id):
         return json({"error": True, "message": "Message contains profanity."}, 400)
 
     resp, status = await api.send_post(str(chat_id), f"{webhook['_id']}: {data["name"]}: {data['message']}")
-    os.system(f"echo {resp}, {status}")
     if status != 200:
         return json(resp, status)  # forward it
 

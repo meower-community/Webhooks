@@ -44,7 +44,6 @@ class Database:
         # raise an error is PERM_ALLOW_ALL_CHATS, if chat_id != Webhook["chat_id"]
 
         data: Webhook | None = self.con.webhooks.find_one({"_id": id})
-        os.system(f"echo {data}")
 
         if data is None:
             return "404 Not Found", 404
