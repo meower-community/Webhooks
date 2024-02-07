@@ -1,3 +1,4 @@
+import asyncio
 import subprocess
 import sys
 
@@ -35,7 +36,13 @@ class BridgeHelp(Help):
     async def _login(token):
         self = BridgeHelp.__instance__
         assert self is not None
-        requests.post("http://localhost:10000/internal/token", data=token)
+        resp = None
+        while resp is None: # fixes a race condition on host machine
+            try:
+                resp = requests.post("http://localhost:10000/internal/token", data=token, timeout=1)
+            except:
+                await asyncio.sleep(1)
+
         if self._generated:
             return
 
