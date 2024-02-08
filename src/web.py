@@ -15,6 +15,8 @@ from better_profanity import profanity
 
 
 app = Sanic("Webhooks")
+app.static('/', './web/', )
+
 api = MeowerBot.api.MeowerAPI("Webhooks")
 database = Database(env.get("DB_URL", "mongodb://localhost:27017"), env.get("DB_NAME", "webhooks"))
 
@@ -27,6 +29,9 @@ async def internal_token(request: Request):
     await api.login(request.body)
     return sanic.empty()
 
+@app.get("/")
+async def root(request: Request):
+    return await sanic.file("./web/index.html")
 
 @app.post("/webhook/<id:str>/<token:str>/<chat_id>/post")
 async def send(request: Request, id, token, chat_id):

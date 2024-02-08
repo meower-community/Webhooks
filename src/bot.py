@@ -229,8 +229,7 @@ class Webhooks(Bot):
     async def send_pmsg(self, packet: Dict[str, Any], val):
         await self.sendPacket({
             "cmd": "pmsg",
-            "val": val,
-            "listener": packet["val"].get("listener"),
+            "val": {**val,"listener": packet["val"].get("listener")},
             "id": packet.get("origin")
         })
 
