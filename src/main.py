@@ -29,7 +29,7 @@ class BridgeHelp(Help):
         if page >= len(self.pages):
             page = len(self.pages) - 1
 
-        await ctx.send_msg("Webhooks: " + self.pages[page])
+        await ctx.send_msg("0: Webhooks: " + self.pages[page].replace("\n\n", "\n"))
 
 
     @callback(CallBackIds.login)
@@ -56,7 +56,7 @@ db = Database(env.get("DB_URL", "mongodb://localhost:27017"), env.get("DB_NAME",
 
 bot = Webhooks(prefix="@Webhooks")
 bot.add_app(db)
-bot.register_cog(BridgeHelp(bot, disable_command_newlines=True))
+bot.register_cog(BridgeHelp(bot))
 
 
 

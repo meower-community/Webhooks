@@ -86,7 +86,7 @@ class Database:
 
         if data is None:
             # create a new user
-            self.con.users.insert_one(User(username=username, banned=False))
+            self.con.users.insert_one(User(_id=username, username=username, banned=False))
             data = User(username=username, banned=False)
 
         return data

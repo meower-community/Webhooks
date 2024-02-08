@@ -1,7 +1,10 @@
+from pydoc import text
+from typing import Any, Dict
+
 from MeowerBot import Bot
 from MeowerBot.cog import Cog
 from MeowerBot.command import command
-from MeowerBot.context import Context, Post, Chat
+from MeowerBot.context import Context, Post, Chat, User, PartialUser
 from MeowerBot.data.api.user import Permissions
 import database
 
@@ -27,8 +30,44 @@ def requires_permission(permission):
         return wrapper
     return decorator
 
+class ModerationService:
+    def __init__(self, bot: 'Webhooks'):
+        self.bot = bot
 
-# noinspection PyIncorrectDocstring
+    async def ban(self, author: User, user: str):
+        if ((author.permissions & Permissions.EDIT_CHATS) != Permissions.EDIT_CHATS) and (author.name != owner):
+            return "You do not have permission to use this command.", 403
+
+        # noinspection PyStatementEffect
+        self.bot.db.ban_user(user)
+        return f"Banned {user}", 200
+
+    async def delete_webhook(self, author: User, webhook_id: str):
+        if ((author.permissions & Permissions.EDIT_CHATS) != Permissions.EDIT_CHATS) and (author.name != owner):
+            return "You do not have permission to use this command.", 403
+
+        self.bot.db.delete_webhook(webhook_id)
+
+        return f"Deleted {webhook_id}", 200
+
+    async def create_webhook(self, author: User, chat: str, pfp: int):
+        if (author.permissions & Permissions.EDIT_CHATS) != Permissions.EDIT_CHATS  \
+           and (chat == "home" or chat == "livechat") and (author.name != owner):
+
+            return "You do not have permission to use this command.", 403
+        elif (chat == "home" or chat == "livechat"):
+            token, id = self.bot.db.create_webhook(pfp, "livechat")  # type: str
+            return f"Webhook created", {"token": token, "id": id}, 200
+
+
+        if (await self.bot.get_chat(chat).fetch()) is None:
+            return f"Please invite {self.bot.username} to {chat}", 428
+
+        token, id = self.bot.db.create_webhook(pfp, chat) # type: str
+        return f"Webhook created", {"token": token, "id": id}, 200
+
+
+# noinspection PyIncorrectDocstring,PyTypeChecker
 class Moderation(Cog):
     def __init__(self, bot: "Webhooks"):
         super().__init__()
@@ -56,18 +95,21 @@ class Moderation(Cog):
                 EDIT_BAN_STATES
         """
 
-        self.bot.db.ban_user(user)
+        await self.bot.mod_service.ban(ctx.user, user)
         await ctx.send_msg(f"Banned {user}.")
         
     @mod.subcommand("delete_webhook", args=1)
     @requires_permission(Permissions.EDIT_BAN_STATES)
     async def delete_webhook(self, ctx: Context, webhook_id: int):
         webhook_id = int(webhook_id)
-        self.bot.db.delete_webhook(webhook_id)
-        await ctx.reply("deleted webhook")
+        resp = await self.bot.mod_service.delete_webhook(ctx.user, webhook_id)
+        match resp[-1]:
+            case 403:
+                await ctx.reply(resp[0])
+            case 200:
+                await ctx.reply("deleted webhook")
 
     @mod.subcommand("create", 2)
-    @requires_permission(0) # No permissions required
     async def create(self, ctx: Context, chat: str, pfp: int):
         """
             Create a webhook.
@@ -75,51 +117,97 @@ class Moderation(Cog):
 
         # try to get the chat
 
-        if chat in ["home", "livechat"]:
-            await ctx.send_msg("Unreachable.")
-            return
+        resp = await self.bot.mod_service.create_webhook(ctx.user, chat, pfp)
+        match resp[-1]:
+            case 200:
+                user_dm = Chat((await self.bot.api.users.dm(ctx.user.username))[0], self.bot)
+                id = resp[1]["id"]
+                token = resp[1]["token"]
+                await ctx.reply("I have sent your webhook via DM's")
+                await user_dm.send_msg(f"0: Your webhook: https://webhooks.meower.org/webhook/{id}/{token}/{chat}/post")
+            case 403:
+                await ctx.reply(resp[0])
+            case 428:
+                await ctx.reply(resp[0])
 
-        if (full_chat := await self.bot.get_chat(chat).fetch()) is None:
-            await ctx.send_msg(f"Please invite {self.bot.username} to {chat}.")
-            return
+    @command(name="pmsg_api")
+    async def pmsg_api(self, ctx: Context):
+        msg = """0: Webhooks: 
+        
+        # Webhook PMSG command docs:
+        
+        
+        ## Basic Format
+        ```{"cmd":"pmsg", "id":"Webhooks", "val":{"listener": "Any", "cmd": "str", "val": "any"}}```
+        Webhooks always uses the same `listener` that you provide. 
+        
+        ## Commands
+        ### create
+        #### Val
+        ```
+            {
+                "chat": "UUID",
+                "pfp": "int"
+            }
+        ``` 
+        
+        ### Responce
+        
+        On Error:
+        ```
+            {
+                "error": true,
+                "status": "int",
+                "human": "str"
+            }
+        ```
+        OK:
+        ```
+           {
+            "status": 200,
+            "token": "str",
+            "id": "uuid",
+            "chat": "str
+           }        
+        ``` 
+        ## delete
+        ### Val
+            : "int"
+            
+        ### Responce
+        ```
+            {
+                "status": "int",
+                "error": "bool"
+            }
+        ```
+        
+        ## ban
+        ### Val
+            : str
+            
+        ### responce
+        ```
+            {
+                "status": "int",
+                "error": "bool"
+            }
+        ```
+        """
 
-        if (full_chat.owner != ctx.user.username) and (full_chat.owner is not None):
-            await ctx.send_msg("You are not the owner of this chat.")
-            return
+        fixed = ""
+        for line in msg.split("\n"):
+            fixed += line.replace("    ", "") + "\n"
 
-        token, id = self.bot.db.create_webhook(pfp, chat) # type: str
-        user_dm = Chat((await self.bot.api.users.dm(ctx.user.username))[0], self.bot)
-
-        await ctx.reply("I have sent your webhook via DM's")
-        await user_dm.send_msg(f"Your webhook: https://webhooks.meower.org/webhook/{id}/{token}/{chat}/post")
-
-    @create.subcommand("home", 1)
-    @requires_permission(Permissions.EDIT_CHATS)
-    async def create_livechat(self, ctx: Context, pfp: int):
-        token, id = self.bot.db.create_webhook(pfp, "home") # type: str
-        user_dm = Chat((await self.bot.api.users.dm(ctx.user.username))[0], self.bot)
-
-        await ctx.reply("I have sent your webhook via DM's")
-        await user_dm.send_msg(f"Your webhook: https://webhooks.meower.org/webhook/{id}/{token}/home/post")
-
-    @create.subcommand("livechat", 1)
-    @requires_permission(Permissions.EDIT_CHATS)
-    async def create_livechat(self, ctx: Context, pfp: int):
-        token, id = self.bot.db.create_webhook(pfp, "livechat") # type: str
-        user_dm = Chat((await self.bot.api.users.dm(ctx.user.username))[0], self.bot)
-
-        await ctx.reply("I have sent your webhook via DM's")
-        await user_dm.send_msg(f"Your webhook: https://webhooks.meower.org/webhook/{id}/{token}/livechat/post")
-
-
-
+        await ctx.send_msg(fixed)
 
 class Webhooks(Bot):
     def __init__(self, prefix=None):
         super().__init__(prefix)
 
-        self.db = None
+        self.db: database = None
         self.moderation = Moderation(self)
+        self.mod_service = ModerationService(self)
         self.register_cog(self.moderation)
 
     def add_app(self, database: database.Database):
@@ -129,7 +217,7 @@ class Webhooks(Bot):
         message = await self.handle_bridges(message)
 
         if self.db.get_user(message.user.username).get("banned"):
-            return Chat(await self.api.users.dm(message.user.username)[0], self).send_msg("You are banned from webhooks.")
+            return Chat((await self.api.users.dm(message.user.username))[0], self).send_msg("You are banned from webhooks.")
 
         if not message.data.startswith(self.prefix):
             return
@@ -137,3 +225,66 @@ class Webhooks(Bot):
         message.data = message.data.removeprefix(self.prefix)
 
         await self.run_commands(message)
+
+    async def send_pmsg(self, packet: Dict[str, Any], val):
+        await self.sendPacket({
+            "cmd": "pmsg",
+            "val": val,
+            "listener": packet["val"].get("listener"),
+            "id": packet.get("origin")
+        })
+
+    async def _message(self, packet: dict):
+        await (super())._message(packet)
+        if packet.get("cmd") != "pmsg":
+            return
+
+        if type(packet["val"]) is not dict:
+            return
+
+        if packet["val"].get("cmd") is None:
+            return
+
+        if self.db.get_user(packet["origin"]).get("banned"):
+            return await self.send_pmsg(packet, {
+                "status": 403,
+                "error": True
+            })
+
+        command = packet["val"]["cmd"]
+        val = packet["val"]["val"]
+        user = await PartialUser(packet["origin"], self).fetch()
+        match command:
+            case "create":
+                resp = await self.mod_service.create_webhook(user, val["chat"], val["pfp"])
+                if resp[-1] != 200:
+                    resp = {
+                        "error": True,
+                        "status": resp[-1],
+                        "human": resp[0]
+                    }
+                else:
+                    resp = {
+                        **resp[1],
+                        "chat": val["chat"],
+                        "status": 200
+                    }
+
+                await self.send_pmsg(packet, resp)
+
+            case "ban":
+                resp = await self.mod_service.ban(user, val)
+                await self.send_pmsg(packet, {
+                    "status": resp[-1],
+                    "error": resp[-1] != 200
+                })
+
+            case "delete":
+                resp = await self.mod_service.delete_webhook(user, val)
+                await self.send_pmsg(packet, {
+                    "status": resp[-1],
+                    "error": resp[-1] != 200
+                })
+
+
+
