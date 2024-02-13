@@ -70,3 +70,16 @@ Response
     "error": "bool"
 }
 ```
+
+## Permisions
+
+All commands have some sort of permision locks.
+
+### create
+When creating webhooks for home or livechat you must have `MANAGE_CHATS` (`64`) or your username must be `ShowierData9978`
+
+### Delete 
+You must have `MANAGE_CHATS` (`64`) or your username must be `ShowierData9978`
+
+### Ban
+You must have `MANAGE_CHATS` (`64`) or your username must be `ShowierData9978`
