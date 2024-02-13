@@ -130,69 +130,12 @@ class Moderation(Cog):
             case 428:
                 await ctx.reply(resp[0])
 
-    @command(name="pmsg_api")
-    async def pmsg_api(self, ctx: Context):
+    @command(name="docs")
+    async def documentation(self, ctx: Context):
         msg = """0: Webhooks: 
         
-        # Webhook PMSG command docs:
-        
-        
-        ## Basic Format
-        ```{"cmd":"pmsg", "id":"Webhooks", "val":{"listener": "Any", "cmd": "str", "val": "any"}}```
-        Webhooks always uses the same `listener` that you provide. 
-        
-        ## Commands
-        ### create
-        #### Val
-        ```
-            {
-                "chat": "UUID",
-                "pfp": "int"
-            }
-        ``` 
-        
-        ### Responce
-        
-        On Error:
-        ```
-            {
-                "error": true,
-                "status": "int",
-                "human": "str"
-            }
-        ```
-        OK:
-        ```
-           {
-            "status": 200,
-            "token": "str",
-            "id": "uuid",
-            "chat": "str
-           }        
-        ``` 
-        ## delete
-        ### Val
-            : "int"
-            
-        ### Responce
-        ```
-            {
-                "status": "int",
-                "error": "bool"
-            }
-        ```
-        
-        ## ban
-        ### Val
-            : str
-            
-        ### responce
-        ```
-            {
-                "status": "int",
-                "error": "bool"
-            }
-        ```
+        - [API](https://github.com/meower-community/Webhooks/blob/main/docs/api.md)
+        - [PMSG](https://github.com/meower-community/Webhooks/blob/main/docs/pmsg.md)
         """
 
         fixed = ""
